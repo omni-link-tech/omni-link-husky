@@ -1,6 +1,6 @@
 # Omni Link Husky Simulation
 
-This project provides a lightweight Python application for driving a Clearpath Husky robot in a PyBullet simulation while exposing simple REST endpoints over Flask. It is useful for experimenting with differential drive control, prototyping motion behaviors, and integrating with other systems that can send HTTP commands. Everything runs in a single Python process, so it is easy to understand, extend, and debug without needing a ROS stack.
+This project provides a lightweight Python application for driving a Clearpath Husky robot in a PyBullet simulation while exposing simple REST endpoints over Flask. It is useful for experimenting with differential drive control, prototyping motion behaviors, and integrating with other systems that can send HTTP commands. Everything runs in a single Python process, so it is easy to understand, extend, and debug without needing a ROS stack - This is the first edit to the readme.....
 
 ## Features
 

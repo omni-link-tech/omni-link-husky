@@ -272,6 +272,7 @@ Expected logs:
     Subscribed to olink/commands.
 
 # OmniLink UI Configuration
+[OmniLink Website](https://www.omnilinktechnology.com/) 
 
 ## Connection Settings
 

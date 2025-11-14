@@ -209,7 +209,9 @@ on your machine.
 ## Step 1 --- Start the Husky Simulator (Flask API)
 
 ``` bash
-python husky_fleet.py
+python husky_drive.py 
+or
+python husky_obstacle_course.py 
 ```
 
 Keep this terminal running and ensure the PyBullet GUI window opens.

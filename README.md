@@ -1,118 +1,323 @@
 # Omni Link Husky Simulation
 
-This project provides a lightweight Python application for driving a Clearpath Husky robot in a PyBullet simulation while exposing simple REST endpoints over Flask. It is useful for experimenting with differential drive control, prototyping motion behaviors, and integrating with other systems that can send HTTP commands. Everything runs in a single Python process, so it is easy to understand, extend, and debug without needing a ROS stack - This is the first edit to the readme.....
+Lightweight Python simulator that runs a Clearpath Husky in a PyBullet physics world and exposes simple REST endpoints (Flask) for commanding the robot. Also includes small Omni Link bridge helpers under `robot_link/` to translate natural-language commands into REST calls.
+
+---
 
 ## Features
 
-- **Realtime physics** powered by PyBullet running at 240 Hz.
-- **REST API control** for commanding linear and angular velocity with optional duration.
-- **Convenience helpers** for common motions such as forward, backward, and turning.
-- **Live pose telemetry** exposed through the `/pose` endpoint.
-- **Simple reset & stop endpoints** for quickly recovering from tests.
+- Realtime physics (PyBullet) at 240 Hz
+- REST API (Flask) for commanding linear/angular velocity, stop, reset, and convenience motions
+- Live pose telemetry exposed at `/pose`
+- Simple obstacle-course entry point variant
+- Omni Link bridge scripts (MQTT / TCP / remote poll + helpers) to translate Omni Link commands into simulator REST calls
 
-## Requirements
+---
 
-- Python 3.9+
-- [PyBullet](https://pybullet.org)
-- [Flask](https://flask.palletsprojects.com/)
+## Project layout
 
-Install the core simulator dependencies with pip:
+.
+- README.md — this file
+- requirements.txt — Python dependencies (pip)
+- husky_drive.py — main simulator + REST server
+- husky_obstacle_course.py — alternate simulator with obstacles
+- robot_link/ — Omni Link bridges and helpers
+  - link_mqtt.py
+  - link_tcp.py
+  - link_remote.py
+  - robot_api.py
+  - omnilink.py (local OmniLink engine)
+  - tcp_client.py
+  - robot_commands.txt
 
-```bash
-pip install pybullet flask
-```
+Note: `omnilink` referenced in the bridge scripts is the local module `robot_link/omnilink.py` — not an external pip package.
 
-The optional Omni Link bridges under `robot_link/` also require:
+---
 
-```bash
-pip install requests paho-mqtt
-```
+## Prerequisites
 
-> **Note:** PyBullet opens a GUI window by default. On headless systems you may need to use a virtual display such as Xvfb.
+- Python 3.9 or newer
+- A system capable of running PyBullet GUI (X11 / Wayland). For headless servers use Xvfb (or run PyBullet in DIRECT mode by editing `setup_world()`).
+- pip (Python package installer)
 
-## Running the Simulator
+Optional (for headless servers):
+- xvfb-run (package `xvfb` / `xvfb-run` on Debian/Ubuntu)
+- system OpenGL libs (e.g., `libgl1-mesa-glx` / `mesa`)
 
-1. (Optional) Create and activate a virtual environment.
+---
 
+## Dependencies (auto-extracted)
+
+Standard library modules used (no install required):
+- time, threading, typing, re, pathlib, os, json, socket, sys
+
+External packages (install via pip):
+- flask
+- pybullet
+- requests
+- paho-mqtt
+
+These are listed in `requirements.txt` included in this repository.
+
+---
+
+## Installation — step by step (explicit)
+
+1. Open a terminal and execute the commands:
+   ```bash
+   git clone https://github.com/omni-link-tech/omni-link-husky-fleet.git
+   cd omni-link-husky-fleet
+   ```
+
+2. Create and activate a virtual environment:
    ```bash
    python -m venv .venv
    source .venv/bin/activate
    ```
 
-2. Launch the simulation and REST server:
-
+3. Upgrade pip (recommended):
    ```bash
-   python husky_drive.py
+   python -m pip install --upgrade pip
    ```
 
-   To try the obstacle-course variant, run:
-
+4. Install the Python dependencies from the included file:
    ```bash
-   python husky_obstacle_course.py
+   pip install -r requirements.txt
    ```
 
-3. A PyBullet window will open showing the Husky model (and, if you launched `husky_obstacle_course.py`, a hand-built driving course). The Flask server listens on `http://127.0.0.1:5000`. Update the `app.run()` call in the script if you need to expose the API on a different interface. Use the sliders in the **Params** tab to move the camera and change the robot's viewpoint while you experiment.
+Optional: on headless CI / servers, install Xvfb and run the simulator under it:
+   - Debian / Ubuntu:
+     ```bash
+     sudo apt update
+     sudo apt install -y xvfb libgl1-mesa-glx
+     xvfb-run python husky_drive.py
+     ```
+   - Or edit `setup_world()` in `husky_drive.py` to use `p.DIRECT` instead of `p.GUI` for headless runs.
 
-4. Send HTTP requests to control the robot. You can use `curl`, `httpie`, Postman, or any HTTP-capable client.
+---
 
-For headless environments, start an X virtual framebuffer (e.g., `xvfb-run python husky_drive.py`) or modify `setup_world()` to use `p.DIRECT` instead of `p.GUI`.
+## requirements.txt
 
-## REST API
+A simple requirements file is provided at the repository root. It contains:
+- flask
+- pybullet
+- requests
+- paho-mqtt
 
-| Method & Endpoint | Description | Example Payload |
-| ----------------- | ----------- | --------------- |
-| `GET /health`     | Returns `{ "ok": true }` for quick liveness checks. | _None_ |
-| `GET /pose`       | Returns the latest pose estimate in meters/radians. | _None_ |
-| `POST /drive`     | Command linear (`vx`) and angular (`wz`) velocity with an optional duration. Positive `vx` drives forward; positive `wz` rotates counter-clockwise. | `{ "vx": 0.6, "wz": 0.0, "duration": 2.0 }` |
-| `POST /stop`      | Immediately zeroes all velocity commands. | _None_ |
-| `POST /reset`     | Resets the Husky pose/velocity and clears the current command. | _None_ |
-| `POST /forward`   | Convenience wrapper for driving forward (`speed` in m/s). | `{ "speed": 0.5, "duration": 1.0 }` |
-| `POST /backward`  | Convenience wrapper for reversing. | `{ "speed": 0.4, "duration": 1.0 }` |
-| `POST /turn_left` | Convenience wrapper that rotates counter-clockwise (`rate` in rad/s). | `{ "rate": 1.2, "duration": 0.8 }` |
-| `POST /turn_right`| Convenience wrapper that rotates clockwise (`rate` in rad/s). | `{ "rate": 1.2, "duration": 0.8 }` |
+(Install with `pip install -r requirements.txt` as shown above.)
 
-Example `curl` request:
+---
 
-```bash
-curl -X POST http://127.0.0.1:5000/drive \
-  -H "Content-Type: application/json" \
-  -d '{"vx": 0.6, "wz": 0.0, "duration": 2.0}'
+## Usage
+
+Start the simulator + REST server
+
+- Standard run (shows PyBullet GUI):
+  ```bash
+  python husky_drive.py
+  ```
+
+- Obstacle-course variant:
+  ```bash
+  python husky_obstacle_course.py
+  ```
+
+After starting, the Flask server listens on http://127.0.0.1:5000 by default.
+
+REST endpoints (examples)
+
+- Health
+  ```bash
+  curl http://127.0.0.1:5000/health
+  # => {"ok": true}
+  ```
+
+- Pose (latest telemetry)
+  ```bash
+  curl http://127.0.0.1:5000/pose
+  # => {"x": 0.0, "y": 0.0, "yaw": 0.0}
+  ```
+
+- Drive (vx in m/s, wz in rad/s, optional duration in seconds)
+  ```bash
+  curl -X POST http://127.0.0.1:5000/drive \
+    -H "Content-Type: application/json" \
+    -d '{"vx": 0.6, "wz": 0.0, "duration": 2.0}'
+  ```
+
+- Stop
+  ```bash
+  curl -X POST http://127.0.0.1:5000/stop
+  ```
+
+- Reset
+  ```bash
+  curl -X POST http://127.0.0.1:5000/reset
+  ```
+
+- Convenience endpoints
+  - Forward:
+    ```bash
+    curl -X POST http://127.0.0.1:5000/forward \
+      -H "Content-Type: application/json" \
+      -d '{"speed": 0.5, "duration": 1.0}'
+    ```
+  - Turn left:
+    ```bash
+    curl -X POST http://127.0.0.1:5000/turn_left \
+      -H "Content-Type: application/json" \
+      -d '{"rate": 1.2, "duration": 0.8}'
+    ```
+
+Omni Link bridges
+
+- MQTT bridge (uses local `omnilink` engine + `robot_api` helpers)
+  ```bash
+  python robot_link/link_mqtt.py
+  ```
+
+- TCP / remote bridges:
+  ```bash
+  python robot_link/link_tcp.py
+  python robot_link/link_remote.py
+  ```
+
+Note: the bridge scripts import and call the local `robot_link/robot_api.py` functions to issue HTTP calls to the running simulator. They require the same virtual environment as the simulator.
+
+---
+
+## Configuration / Environment Variables
+
+- HUSKY_API_URL — (used by `robot_link/robot_api.py`) optional base URL for the simulator REST API. If unset the default `http://127.0.0.1:5000` is used. You can set it before starting the bridge scripts:
+
+  ```bash
+  export HUSKY_API_URL="http://192.168.1.10:5000"
+  python robot_link/link_mqtt.py
+  ```
+
+- Flask host/port — change in `husky_drive.py` `app.run(...)` call as needed.
+
+- Headless mode — edit `setup_world()` in `husky_drive.py` and set `p.connect(p.DIRECT)` in place of `p.connect(p.GUI)`.
+
+---
+
+# Demo Setup Guide
+
+Follow these steps to run the OmniLink + Husky Simulator demo smoothly
+on your machine.
+
+## Step 1 --- Start the Husky Simulator (Flask API)
+
+``` bash
+python husky_fleet.py
 ```
 
-## Configuration
+Keep this terminal running and ensure the PyBullet GUI window opens.
 
-Key simulation constants are defined at the top of both simulator entry points (e.g., `husky_drive.py` and `husky_obstacle_course.py`), including wheel geometry, acceleration limits, damping factors, and obstacle layout. Adjust them to tune vehicle behavior or test different dynamics.
+## Step 2 --- Configure & Start the MQTT Broker (Mosquitto)
 
-## Omni Link Agent Configuration
+The OmniLink Agent requires MQTT over WebSockets on port 9001 with
+anonymous access enabled.
 
-- **Main Task:** You are an agent who controls the movements of a mobile robot.
-- **Available Commands:**
-  - `move_forward_at_[number]_m/s_for_[number]_seconds`
-  - `move_backward_at_[number]_m/s_for_[number]_seconds`
-  - `turn_right_at_[number]_rad/s_for_[number]_seconds`
-  - `turn_left_at_[number]_rad/s_for_[number]_seconds`
-  - `stop`
-- **User Name:** none
-- **Agent Name:** Husky
-- **Agent Personality:** friendly, professional
-- **Custom Instructions:** none
+### Stop Existing Mosquitto Service
 
-## Project Structure
-
-```
-.
-├── README.md                  # Project overview and usage
-├── husky_drive.py             # Main simulation + REST server script
-├── husky_obstacle_course.py   # Alternate entry point with a PyBullet obstacle course
-└── robot_link/                # Omni Link bridges (MQTT, TCP, remote polling) and helpers
+``` bash
+sudo systemctl stop mosquitto.service
 ```
 
-The `robot_link` helpers translate Omni Link natural-language commands into REST calls against the simulator. Start `robot_link/link_mqtt.py`, `robot_link/link_tcp.py`, or `robot_link/link_remote.py` after configuring the appropriate connection details to bridge those commands into the running Husky instance.
+### Edit Configuration
 
-## Troubleshooting
+``` bash
+sudo nano /etc/mosquitto/mosquitto.conf
+```
 
-- **No GUI appears:** Ensure you are running in an environment with an available display or configure PyBullet for headless rendering (see the headless note above).
-- **Robot does not move:** Check that commands are within the clamped limits (`MAX_VX`, `MAX_WZ`) and that the `/drive` endpoint is receiving float values. The JSON body must contain numbers, not strings.
-- **Camera controls are awkward:** Use the on-screen sliders in the PyBullet UI to adjust yaw and pitch, or change the default values at the top of `husky_drive.py`.
-- **Need to restart:** Use the `/reset` endpoint or restart the script to clear any unexpected state.
+Add the following:
+
+    allow_anonymous true
+    listener 9001
+    protocol websockets
+
+### Start Mosquitto
+
+``` bash
+sudo systemctl start mosquitto.service
+```
+
+## Step 3 --- Launch the OmniLink Bridge Script
+
+### Set environment variables
+
+``` bash
+export HUSKY_API_URL=http://127.0.0.1:5000
+export HUSKY_ROBOT_ID=husky_0
+```
+
+### Navigate to the bridge
+
+``` bash
+cd robot_link/
+```
+
+### Start the bridge
+
+``` bash
+python link_mqtt.py
+```
+
+Expected logs:
+
+    [OmniLinkMQTT] Connected localhost:9001...
+    Subscribed to olink/commands.
+
+# OmniLink UI Configuration
+
+## Connection Settings
+
+-   **BROKER URL:** `ws://localhost:9001`
+-   **Command Topic:** `olink/commands`
+
+## Command Templates
+
+Go to **Settings → Commands** and use the provided templates to avoid
+parsing errors.
+
+# Usage & Verification
+
+Example command in the UI:
+
+> Move forward at 0.5 m/s for 3 seconds.
+
+### Expected behavior:
+
+-   Bridge logs the parsed command.
+-   Simulator may log an HTTP POST.
+-   PyBullet robot moves for 3 seconds and stops.
+
+## Troubleshooting & Notes
+
+- No GUI appears
+  - Ensure a display is available. On headless machines use `xvfb-run` or run PyBullet in DIRECT mode.
+  - Install system OpenGL libraries if you see rendering errors (e.g., `libgl1-mesa-glx`).
+
+- Robot does not move
+  - Commands must be numeric values (JSON numbers, not strings).
+  - Commands are clamped to `MAX_VX` and `MAX_WZ` defined in `husky_drive.py`.
+  - If using the bridges, ensure `HUSKY_API_URL` points to the running simulator.
+
+- Reset endpoint caveat (known issue)
+  - The `/reset` endpoint in the distributed sample manipulates the PyBullet world from the Flask thread. PyBullet's API is not thread-safe and a safer approach is to post a reset request that the physics thread consumes. If you see crashes when calling `/reset` while the simulator is running, consider modifying `api_reset()` to signal the physics loop rather than directly calling PyBullet APIs from the Flask thread.
+
+- Mixed natural-language parsing
+  - Bridge scripts parse numeric arguments from free-form command strings. Commands mixing words and numbers (e.g., "two seconds") may not parse correctly. Use numeric values or adapt the bridge code to use structured `vars` from the OmniLink engine.
+
+- Graceful shutdown
+  - Long-running scripts currently do not implement SIGINT/SIGTERM-based graceful shutdown. Stopping them via Ctrl+C will kill the process; consider adding signal handlers to stop loops and close connections cleanly for production use.
+
+---
+
+## License
+
+No license file is included in this repository. If you want to redistribute or reuse this code, add a LICENSE file (for example MIT) or consult the repository owner.
+
+---
 

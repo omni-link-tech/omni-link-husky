@@ -1,0 +1,4 @@
+flask
+pybullet
+requests
+paho-mqtt
